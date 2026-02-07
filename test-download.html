@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Template Intelligence Engine - Download Test</h1>
+    
+    <h2>1. Test Server Connection</h2>
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <div id="healthResult"></div>
+
+    <h2>2. Test Template List</h2>
+    <button onclick="testTemplates()">Get Templates</button>
+    <div id="templatesResult"></div>
+
+    <h2>3. Test Document Generation</h2>
+    <button onclick="testGeneration()">Generate Test Document</button>
+    <div id="generationResult"></div>
+
+    <h2>4. Test Direct Download</h2>
+    <input type="text" id="downloadUrl" placeholder="/api/download/filename.docx" style="width: 400px; padding: 8px;">
+    <button onclick="testDownload()">Download File</button>
+    <div id="downloadResult"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+
+        async function testHealth() {
+            const result = document.getElementById('healthResult');
+            result.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                result.className = 'result success';
+                result.innerHTML = `✅ Server is healthy!<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ Error: ${error.message}<br>Make sure server is running on port 5000`;
+            }
+        }
+
+        async function testTemplates() {
+            const result = document.getElementById('templatesResult');
+            result.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/templates`);
+                const data = await response.json();
+                result.className = 'result success';
+                result.innerHTML = `✅ Found ${data.length} templates!<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+
+        async function testGeneration() {
+            const result = document.getElementById('generationResult');
+            result.innerHTML = 'Generating document...';
+            
+            const testData = {
+                templates: ['annual_update'],
+                clientData: {
+                    '[Client Name]': 'Test Client',
+                    'Client Name': 'Test Client',
+                    '[Portfolio Value]': '£100,000',
+                    '[Date]': new Date().toLocaleDateString()
+                }
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/generate-batch`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.results && data.results[0] && data.results[0].success) {
+                    const downloadUrl = data.results[0].downloadUrl;
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        ✅ Document generated successfully!<br>
+                        Filename: ${data.results[0].filename}<br>
+                        <button onclick="downloadDirect('${downloadUrl}', '${data.results[0].filename}')">Download Now</button><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    
+                    // Auto-fill download URL
+                    document.getElementById('downloadUrl').value = downloadUrl;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `❌ Generation failed<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+
+        async function downloadDirect(url, filename) {
+            const fullUrl = `${API_BASE}${url}`;
+            console.log('Downloading from:', fullUrl);
+            
+            try {
+                const response = await fetch(fullUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(downloadUrl);
+                    alert('Download started! Check your downloads folder.');
+                }, 100);
+                
+            } catch (error) {
+                alert(`Download failed: ${error.message}`);
+                console.error('Download error:', error);
+            }
+        }
+
+        async function testDownload() {
+            const result = document.getElementById('downloadResult');
+            const downloadUrl = document.getElementById('downloadUrl').value;
+            
+            if (!downloadUrl) {
+                result.className = 'result error';
+                result.innerHTML = '❌ Please enter a download URL';
+                return;
+            }
+            
+            result.innerHTML = 'Attempting download...';
+            
+            const filename = downloadUrl.split('/').pop();
+            await downloadDirect(downloadUrl, filename);
+            
+            result.className = 'result success';
+            result.innerHTML = '✅ Download initiated! Check your downloads folder.';
+        }
+    </script>
+</body>
+</html>
