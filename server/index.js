@@ -15,6 +15,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// PRODUCTION: Serve React build files
+if (process.env.NODE_ENV === 'production') {
+  const clientBuildPath = path.join(__dirname, '../client/dist');
+  app.use(express.static(clientBuildPath));
+  console.log('Production mode: Serving static files from:', clientBuildPath);
+}
+
 // Template storage
 const TEMPLATES_DIR = path.join(__dirname, 'templates');
 const OUTPUT_DIR = path.join(__dirname, 'outputs');
@@ -30,7 +37,7 @@ const UPLOADS_DIR = path.join(__dirname, 'uploads');
 // Configure multer for file uploads
 const upload = multer({ dest: UPLOADS_DIR });
 
-// Import processors (we'll create these files next)
+// Import processors
 const DocumentProcessor = require('./documentProcessor');
 const AIReportGenerator = require('./aiReportGenerator');
 
@@ -172,7 +179,7 @@ class AdvancedTemplateProcessor {
 app.get('/api/templates', (req, res) => {
   const templates = [
     { id: 'annual_update', name: 'Annual Update', file: 'Annual_Update.docx' },
-     //{ id: 'ar_letter', name: 'Annual Review Letter', file: 'AR_Letter_New.docx' },
+    // { id: 'ar_letter', name: 'Annual Review Letter', file: 'AR_Letter_New.docx' }, // Removed - template not found
     { id: 'report', name: 'Report', file: 'Report.docx' },
     { id: 'review_report', name: 'Review Report', file: 'Review_report.docx' },
     { id: 'suitability_report', name: 'Suitability Report', file: 'suitability_report.docx' }
@@ -294,7 +301,7 @@ app.post('/api/generate-batch', async (req, res) => {
   }
 });
 
-// NEW: AI-Powered Report Generation Endpoint
+// AI-Powered Report Generation Endpoint
 app.post('/api/generate-ai-report', upload.array('documents', 20), async (req, res) => {
   try {
     const uploadedFiles = req.files;
@@ -388,11 +395,24 @@ app.get('/api/download/:filename', (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
+
+// PRODUCTION: Serve React app for all non-API routes
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    const clientBuildPath = path.join(__dirname, '../client/dist');
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Template Intelligence Engine running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Templates directory: ${TEMPLATES_DIR}`);
   console.log(`Outputs directory: ${OUTPUT_DIR}`);
   console.log(`Uploads directory: ${UPLOADS_DIR}`);
