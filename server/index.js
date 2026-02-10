@@ -34,6 +34,45 @@ const UPLOADS_DIR = path.join(__dirname, 'uploads');
   }
 });
 
+
+
+// Create directories if they don't exist
+[TEMPLATES_DIR, OUTPUT_DIR, UPLOADS_DIR].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
+// ADD THIS DEBUG SECTION ⬇️
+console.log('=== DEBUGGING TEMPLATES ===');
+console.log('Templates directory:', TEMPLATES_DIR);
+console.log('Directory exists:', fs.existsSync(TEMPLATES_DIR));
+
+if (fs.existsSync(TEMPLATES_DIR)) {
+  const files = fs.readdirSync(TEMPLATES_DIR);
+  console.log('Files in templates directory:', files);
+  console.log('Number of templates:', files.length);
+  
+  // Check each template specifically
+  const templateFiles = [
+    'Annual_Update.docx',
+    'Report.docx', 
+    'Review_report.docx',
+    'suitability_report.docx'
+  ];
+  
+  templateFiles.forEach(file => {
+    const fullPath = path.join(TEMPLATES_DIR, file);
+    console.log(`${file}: ${fs.existsSync(fullPath) ? '✓ EXISTS' : '✗ MISSING'}`);
+  });
+} else {
+  console.error('❌ Templates directory does not exist!');
+}
+console.log('=========================');
+// END DEBUG SECTION ⬆️
+
+
+
 // Configure multer for file uploads
 const upload = multer({ dest: UPLOADS_DIR });
 
