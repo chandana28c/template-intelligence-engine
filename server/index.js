@@ -23,7 +23,16 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Template storage
-const TEMPLATES_DIR = path.join(__dirname, 'templates');
+// Update TEMPLATES_DIR to handle both local and production
+const TEMPLATES_DIR = process.env.NODE_ENV === 'production' 
+  ? path.join(__dirname, 'templates')
+  : path.join(__dirname, 'templates');
+
+console.log('Environment:', process.env.NODE_ENV);
+console.log('__dirname:', __dirname);
+console.log('Templates path:', TEMPLATES_DIR);
+
+
 const OUTPUT_DIR = path.join(__dirname, 'outputs');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
@@ -440,6 +449,51 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development'
   });
 });
+
+
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// ADD THIS DEBUG ENDPOINT ⬇️
+app.get('/api/debug/filesystem', (req, res) => {
+  try {
+    const info = {
+      cwd: process.cwd(),
+      dirname: __dirname,
+      templatesDir: TEMPLATES_DIR,
+      outputsDir: OUTPUT_DIR,
+      uploadsDir: UPLOADS_DIR,
+      templatesDirExists: fs.existsSync(TEMPLATES_DIR),
+      templatesFiles: fs.existsSync(TEMPLATES_DIR) ? fs.readdirSync(TEMPLATES_DIR) : [],
+      env: process.env.NODE_ENV,
+      nodeVersion: process.version
+    };
+    res.json(info);
+  } catch (error) {
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+// END DEBUG ENDPOINT ⬆️
+
+// PRODUCTION: Serve React app for all non-API routes
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    const clientBuildPath = path.join(__dirname, '../client/dist');
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
+
+
+
+
+
 
 // PRODUCTION: Serve React app for all non-API routes
 if (process.env.NODE_ENV === 'production') {
